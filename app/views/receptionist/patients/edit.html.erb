@@ -1,0 +1,45 @@
+<h1>Edit Patient</h1>
+
+<%= form_with model: @patient, url: receptionist_patient_path(@patient), method: :patch, local: true do |form| %>
+  <% if @patient.errors.any? %>
+    <div id="error_explanation">
+      <h2><%= pluralize(@patient.errors.count, "error") %> prohibited this patient from being saved:</h2>
+      <ul>
+        <% @patient.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="field">
+    <%= form.label :first_name %>
+    <%= form.text_field :first_name %>
+  </div>
+
+  <div class="field">
+    <%= form.label :last_name %>
+    <%= form.text_field :last_name %>
+  </div>
+
+  <div class="field">
+    <%= form.label :dob, "Date of Birth" %>
+    <%= form.date_select :dob %>
+  </div>
+
+  <div class="field">
+    <%= form.label :contact_number %>
+    <%= form.telephone_field :contact_number %>
+  </div>
+
+  <div class="field">
+    <%= form.label :address %>
+    <%= form.text_area :address %>
+  </div>
+
+  <div class="actions">
+    <%= form.submit "Update Patient" %>
+  </div>
+<% end %>
+
+<%= link_to 'Back to Dashboard', receptionist_dashboard_path %>

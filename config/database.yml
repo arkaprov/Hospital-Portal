@@ -1,0 +1,19 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: 5
+  username: arka
+  password: 12345
+  host: localhost
+
+development:
+  <<: *default
+  database: hospital_portal_development2
+
+test:
+  <<: *default
+  database: hospital_portal_test2
+
+production:
+  <<: *default
+  database: hospital_portal_production2
