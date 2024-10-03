@@ -1,24 +1,20 @@
 # README
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Hospital Portal
+This is a simple Ruby on Rails web application that consists of two main portals: one for receptionists and one for doctors. Receptionists can register and manage patients, while doctors can view a list of registered patients and visualize patient registrations over time using interactive charts. The application uses PostgreSQL for data storage and includes user authentication and a responsive user interface.
 
-Things you may want to cover:
+Features:
+Receptionist Portal: Manage patients with full CRUD functionality (Create, Read, Update, Delete).
+Doctor Portal: View a list of registered patients and visualize patient registrations with charts.
+Authentication: Secure login and session management.
+Data Visualization: Patient registration statistics using Chartkick and Chart.js.
+Responsive Design: User-friendly design for both desktop and mobile.
 
-* Ruby version
+Technologies Used:
+Ruby on Rails
+PostgreSQL
+Chartkick and Chart.js for chart rendering
+Bcrypt for secure password handling
 
-* System dependencies
 
-* Configuration
 
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
