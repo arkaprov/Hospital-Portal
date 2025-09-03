@@ -1,164 +1,53 @@
-### Prerequisites
-- Assume your virtual machine (VM) is running a Linux distribution (e.g., Ubuntu). If it's Windows, adjust installation commands accordingly (e.g., use Chocolatey or MSI for Azure CLI).
-- You have an existing Azure Kubernetes Service (AKS) cluster set up in your Azure subscription.
-- You know your AKS cluster's resource group name (e.g., `myResourceGroup`) and cluster name (e.g., `myAKSCluster`). Replace placeholders like `<resource-group>` and `<cluster-name>` with your actual values.
-- Basic familiarity with terminal commands.
-- "Romcat" is assumed to be a typo for "Tomcat" (Apache Tomcat server).
+provider "aws" {
+  region = "us-east-1"  # Replace with your desired region
+}
 
-### Step 1: Install Azure CLI on the VM
-Open a terminal in your VM and run the following commands to install Azure CLI.
+# Create a new security group
+resource "aws_security_group" "my_sg" {
+  name        = "my-security-group"
+  description = "Security group for EC2 instances"
 
-For Ubuntu/Debian-based systems:
-```
-sudo apt-get update
-sudo apt-get install ca-certificates curl apt-transport-https lsb-release gnupg
-curl -sL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null
-AZ_REPO=$(lsb_release -cs)
-echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-$AZ_REPO-prod $AZ_REPO main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
-sudo apt-get update
-sudo apt-get install azure-cli
-```
+  # Ingress rule for SSH
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Allow SSH from anywhere (restrict for production)
+  }
 
-Verify installation:
-```
-az --version
-```
+  # Ingress rule for HTTP (example)
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-### Step 2: Install kubectl on the VM
-Azure CLI can help install kubectl. Run:
-```
-az aks install-cli
-```
+  # Egress rule (allow all outbound traffic)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-This downloads and installs kubectl to `~/.azure-kubectl/`. Add it to your PATH if needed (e.g., `export PATH=$PATH:~/.azure-kubectl/`).
+  tags = {
+    Name = "my-security-group"
+  }
+}
 
-Verify:
-```
-kubectl version --client
-```
+# Launch two EC2 instances
+resource "aws_instance" "my_instance" {
+  count         = 2
+  ami           = "ami-0c55b159cbfafe1f0"  # Replace with a valid AMI for your region
+  instance_type = "t2.micro"
+  security_groups = [aws_security_group.my_sg.name]
 
-### Step 3: Log in to Azure CLI
-Authenticate with your Azure account:
-```
-az login
-```
-Follow the prompts to open a browser and sign in. If the VM has no browser, use device code login: `az login --use-device-code`.
+  tags = {
+    Name = "instance-${count.index + 1}"
+  }
+}
 
-### Step 4: Configure kubectl to Connect to Your AKS Cluster
-Fetch the cluster credentials:
-```
-az aks get-credentials --resource-group <resource-group> --name <cluster-name>
-```
-This merges the kubeconfig for your AKS cluster into `~/.kube/config`.
-
-Verify connection:
-```
-kubectl get nodes
-```
-This should list the nodes in your AKS cluster (no need to "apply nodes"—your cluster already has nodes; this command just verifies access).
-
-### Step 5: Write the Deployment YAML File for Tomcat
-Create a file named `deployment.yaml` using a text editor (e.g., nano or vim):
-```
-nano deployment.yaml
-```
-
-Paste the following content (this deploys a single replica of Tomcat using the official Docker image):
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: tomcat-deployment
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: tomcat
-  template:
-    metadata:
-      labels:
-        app: tomcat
-    spec:
-      containers:
-      - name: tomcat
-        image: tomcat:latest
-        ports:
-        - containerPort: 8080
-```
-
-Save and exit (in nano: Ctrl+O, Enter, Ctrl+X).
-
-### Step 6: Write the Service YAML File for Tomcat
-Create a file named `service.yaml`:
-```
-nano service.yaml
-```
-
-Paste the following content (this creates a LoadBalancer service to expose Tomcat externally on port 80, mapping to container port 8080):
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: tomcat-service
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-    targetPort: 8080
-  selector:
-    app: tomcat
-```
-
-Save and exit.
-
-### Step 7: Apply the YAML Files Using kubectl
-Apply the deployment:
-```
-kubectl apply -f deployment.yaml
-```
-
-Apply the service:
-```
-kubectl apply -f service.yaml
-```
-
-Verify the deployment:
-```
-kubectl get deployments
-```
-It should show `tomcat-deployment` with 1/1 ready replicas.
-
-Verify pods:
-```
-kubectl get pods
-```
-Wait for the pod to reach "Running" status (may take a minute).
-
-### Step 8: Get the Service Details and External URL
-Watch for the external IP assignment (AKS LoadBalancer services provision a public IP):
-```
-kubectl get svc tomcat-service -w
-```
-
-This will output something like:
-```
-NAME             TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
-tomcat-service   LoadBalancer   10.0.123.45    <pending>      80:31234/TCP   1m
-```
-Wait until `EXTERNAL-IP` changes from `<pending>` to an actual IP address (e.g., `20.123.45.67`). Press Ctrl+C to stop watching once it's ready.
-
-### Step 9: Access the Tomcat Server URL
-Once the external IP is available, open a web browser (on your VM or elsewhere) and navigate to:
-```
-http://<external-ip>
-```
-Replace `<external-ip>` with the IP from Step 8. This should load the default Apache Tomcat welcome page.
-
-If you encounter issues:
-- Check pod logs: `kubectl logs <pod-name>` (get pod name from `kubectl get pods`).
-- Ensure your AKS cluster allows public LoadBalancer services (check NSG rules if needed).
-- Tomcat may take time to start; refresh the page after a minute.
-
-This deploys a basic Tomcat instance. For production, consider adding persistence, security, or custom WAR files.
+output "instance_ids" {
+  value = aws_instance.my_instance[*].id
+}
