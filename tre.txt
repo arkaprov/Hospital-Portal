@@ -1,39 +1,15 @@
+aws ec2 describe-security-groups --region us-east-1
+
+
 provider "aws" {
   region = "us-east-1"  # Replace with your desired region
 }
 
-# Create a new security group
-resource "aws_security_group" "my_sg" {
-  name        = "my-security-group"
-  description = "Security group for EC2 instances"
-
-  # Ingress rule for SSH
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Allow SSH from anywhere (restrict for production)
-  }
-
-  # Ingress rule for HTTP (example)
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Egress rule (allow all outbound traffic)
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "my-security-group"
-  }
+# Reference an existing security group
+data "aws_security_group" "existing_sg" {
+  name = "existing-security-group-name"  # Replace with the actual security group name
+  # Alternatively, use ID:
+  # id = "sg-1234567890abcdef0"
 }
 
 # Launch two EC2 instances
@@ -41,7 +17,7 @@ resource "aws_instance" "my_instance" {
   count         = 2
   ami           = "ami-0c55b159cbfafe1f0"  # Replace with a valid AMI for your region
   instance_type = "t2.micro"
-  security_groups = [aws_security_group.my_sg.name]
+  security_groups = [data.aws_security_group.existing_sg.name]
 
   tags = {
     Name = "instance-${count.index + 1}"
