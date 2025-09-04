@@ -1,6 +1,3 @@
-aws ec2 describe-security-groups --region us-east-1
-
-
 provider "aws" {
   region = "us-east-1"  # Replace with your desired region
 }
@@ -12,11 +9,31 @@ data "aws_security_group" "existing_sg" {
   # id = "sg-1234567890abcdef0"
 }
 
+# Create a new key pair
+resource "aws_key_pair" "my_key_pair" {
+  key_name   = "my-terraform-key"  # Name for the key pair in AWS
+  public_key = tls_private_key.my_key.public_key_openssh
+}
+
+# Generate a new private key
+resource "tls_private_key" "my_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# Save the private key to a local file
+resource "local_file" "private_key" {
+  content         = tls_private_key.my_key.private_key_pem
+  filename        = "${path.module}/my-terraform-key.pem"
+  file_permission = "0600"  # Secure permissions for the private key
+}
+
 # Launch two EC2 instances
 resource "aws_instance" "my_instance" {
   count         = 2
   ami           = "ami-0c55b159cbfafe1f0"  # Replace with a valid AMI for your region
   instance_type = "t2.micro"
+  key_name      = aws_key_pair.my_key_pair.key_name  # Associate the key pair
   security_groups = [data.aws_security_group.existing_sg.name]
 
   tags = {
@@ -26,4 +43,12 @@ resource "aws_instance" "my_instance" {
 
 output "instance_ids" {
   value = aws_instance.my_instance[*].id
+}
+
+output "key_pair_name" {
+  value = aws_key_pair.my_key_pair.key_name
+}
+
+output "private_key_path" {
+  value = local_file.private_key.filename
 }
